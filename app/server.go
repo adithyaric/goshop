@@ -41,9 +41,7 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func (server *Server) Initialize(appConfig AppConfig, dbConfig DBConfig) {
-	fmt.Println("Welcome to " + appConfig.AppName)
-
+func (server *Server) initializeDB(dbConfig DBConfig) {
 	var err error
 	if dbConfig.DBDriver == "mysql" {
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbConfig.DBUser, dbConfig.DBPassword, dbConfig.DBHost, dbConfig.DBPort, dbConfig.DBName)
@@ -57,7 +55,21 @@ func (server *Server) Initialize(appConfig AppConfig, dbConfig DBConfig) {
 		panic("Failed on connecting to the database server")
 	}
 
-	server.Router = mux.NewRouter()
+	for _, model := range RegisterModels() {
+		err = server.DB.Debug().AutoMigrate(model.Model)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	fmt.Println("Database migrated successfully.")
+}
+
+func (server *Server) Initialize(appConfig AppConfig, dbConfig DBConfig) {
+	fmt.Println("Welcome to " + appConfig.AppName)
+
+	server.initializeDB(dbConfig)
 	server.initializeRoutes()
 }
 
